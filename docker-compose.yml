@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      # Leave LITMUS_ENDPOINT unset to use mock mode.
+      # Uncomment and fill in when running against a real LitmusChaos cluster.
+      # LITMUS_ENDPOINT: http://litmusportal-server-service:9091
+      # LITMUS_USERNAME: admin
+      # LITMUS_PASSWORD: litmus
+      # LITMUS_PROJECT_ID: ""
+      # LITMUS_CLUSTER_ID: ""
+      PORT: 3001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped

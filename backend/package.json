@@ -1,0 +1,17 @@
+{
+  "name": "chaosctrl-backend",
+  "version": "1.0.0",
+  "description": "Chaosctrl backend API – bridges LitmusChaos to a developer-friendly interface",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "uuid": "^10.0.0"
+  }
+}
