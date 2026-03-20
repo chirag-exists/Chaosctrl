@@ -1,0 +1,188 @@
+---
+# ────────────────────────────────────────────────────────────
+# Chaosctrl – Kubernetes manifests
+# Deploy into the same cluster as LitmusChaos.
+# ────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaosctrl
+
+---
+# ─── Backend ───────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaosctrl-backend
+  namespace: chaosctrl
+  labels:
+    app: chaosctrl-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaosctrl-backend
+  template:
+    metadata:
+      labels:
+        app: chaosctrl-backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/chirag-exists/chaosctrl-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          env:
+            # Point at the LitmusChaos portal service inside the cluster.
+            # Leave LITMUS_ENDPOINT empty to use built-in mock mode.
+            - name: LITMUS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-litmus-secret
+                  key: endpoint
+                  optional: true
+            - name: LITMUS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-litmus-secret
+                  key: username
+                  optional: true
+            - name: LITMUS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-litmus-secret
+                  key: password
+                  optional: true
+            - name: LITMUS_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-litmus-secret
+                  key: project_id
+                  optional: true
+            - name: LITMUS_CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-litmus-secret
+                  key: cluster_id
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaosctrl-backend
+  namespace: chaosctrl
+spec:
+  selector:
+    app: chaosctrl-backend
+  ports:
+    - port: 3001
+      targetPort: 3001
+
+---
+# ─── Frontend ──────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaosctrl-frontend
+  namespace: chaosctrl
+  labels:
+    app: chaosctrl-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaosctrl-frontend
+  template:
+    metadata:
+      labels:
+        app: chaosctrl-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/chirag-exists/chaosctrl-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaosctrl-frontend
+  namespace: chaosctrl
+spec:
+  selector:
+    app: chaosctrl-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# ─── Ingress (optional – adjust host/class to your cluster) ─
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chaosctrl
+  namespace: chaosctrl
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    # Replace with your actual domain
+    - host: chaosctrl.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: chaosctrl-backend
+                port:
+                  number: 3001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chaosctrl-frontend
+                port:
+                  number: 3000
+
+---
+# ─── Secret template (fill in real values) ─────────────────
+# kubectl create secret generic chaosctrl-litmus-secret \
+#   --namespace chaosctrl \
+#   --from-literal=endpoint=http://litmusportal-server-service.litmus:9091 \
+#   --from-literal=username=admin \
+#   --from-literal=password=litmus \
+#   --from-literal=project_id=<your-project-id> \
+#   --from-literal=cluster_id=<your-cluster-id>

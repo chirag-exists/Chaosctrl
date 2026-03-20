@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0f1117;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Smooth progress bar animation */
+.progress-bar {
+  transition: width 0.8s ease-in-out;
+}
+
+/* Pulsing glow for the Safety Switch */
+.safety-glow {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+/* Card hover lift */
+.experiment-card:hover {
+  transform: translateY(-2px);
+}
