@@ -1,0 +1,198 @@
+---
+# Namespace for Chaosctrl (deploy into the same namespace as LitmusChaos,
+# or change to your own namespace).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaosctrl
+
+---
+# ─────────────────────────────────────────────────
+# Backend Deployment
+# ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaosctrl-backend
+  namespace: chaosctrl
+  labels:
+    app: chaosctrl-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaosctrl-backend
+  template:
+    metadata:
+      labels:
+        app: chaosctrl-backend
+    spec:
+      containers:
+        - name: backend
+          image: chaosctrl-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PORT
+              value: "4000"
+            - name: NODE_ENV
+              value: production
+            - name: LITMUS_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: chaosctrl-config
+                  key: LITMUS_ENDPOINT
+            - name: LITMUS_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: chaosctrl-config
+                  key: LITMUS_PROJECT_ID
+            - name: LITMUS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: chaosctrl-secret
+                  key: LITMUS_TOKEN
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaosctrl-backend
+  namespace: chaosctrl
+spec:
+  selector:
+    app: chaosctrl-backend
+  ports:
+    - port: 4000
+      targetPort: 4000
+  type: ClusterIP
+
+---
+# ─────────────────────────────────────────────────
+# Frontend Deployment
+# ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaosctrl-frontend
+  namespace: chaosctrl
+  labels:
+    app: chaosctrl-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaosctrl-frontend
+  template:
+    metadata:
+      labels:
+        app: chaosctrl-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: chaosctrl-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaosctrl-frontend
+  namespace: chaosctrl
+spec:
+  selector:
+    app: chaosctrl-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+# ─────────────────────────────────────────────────
+# Ingress (optional — adapt hostname/annotations to your cluster)
+# ─────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chaosctrl
+  namespace: chaosctrl
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-pass-headers: Authorization
+spec:
+  rules:
+    - host: chaosctrl.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: chaosctrl-backend
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chaosctrl-frontend
+                port:
+                  number: 80
+
+---
+# ─────────────────────────────────────────────────
+# ConfigMap — adjust values for your environment
+# ─────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaosctrl-config
+  namespace: chaosctrl
+data:
+  # LitmusChaos GraphQL API endpoint (usually in the litmus namespace)
+  LITMUS_ENDPOINT: "http://litmus-server-service.litmus.svc.cluster.local:9002/query"
+  LITMUS_PROJECT_ID: "default-project"
+
+---
+# ─────────────────────────────────────────────────
+# Secret — store your LitmusChaos auth token here
+# ─────────────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: chaosctrl-secret
+  namespace: chaosctrl
+type: Opaque
+stringData:
+  # Replace with your actual LitmusChaos Bearer token
+  LITMUS_TOKEN: ""
