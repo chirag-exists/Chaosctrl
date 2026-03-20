@@ -2,7 +2,7 @@
 
 A lightweight control room for [LitmusChaos](https://litmuschaos.io). Simplify CNCF-grade chaos engineering with a developer-first dashboard. Bridge the gap between "we have failover" and "we've tested failover."
 
-![Chaosctrl Dashboard](docs/screenshot.png)
+📖 **[Full User Manual →](docs/USER_MANUAL.md)**
 
 ## Features
 
@@ -132,9 +132,15 @@ Chaosctrl/
 │   └── package.json
 ├── k8s/
 │   └── deployment.yaml           # Kubernetes manifests
+├── docs/
+│   └── USER_MANUAL.md            # Full user manual
 ├── docker-compose.yml
 └── README.md
 ```
+
+## Documentation
+
+- **[User Manual](docs/USER_MANUAL.md)** — Full step-by-step guide: installation, configuration, dashboard usage, API reference, troubleshooting, and FAQ.
 
 ## Running Tests
 
